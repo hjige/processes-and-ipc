@@ -14,6 +14,7 @@
 void child_a(int fd[])
 {
   dup2(fd[WRITE], STDOUT);
+  close(fd[READ]);
   execlp("ls", "ls", "-F", "-1", NULL);
 
   perror("Return from execlp() not expected");
@@ -23,6 +24,7 @@ void child_a(int fd[])
 void child_b(int fd[])
 {
   dup2(fd[READ], STDIN);
+  close(fd[WRITE]);
   execlp("nl", "nl", NULL);
 
   perror("Return from execlp() not expected");
@@ -41,6 +43,7 @@ int main(void)
   pid_t child_a_id;
   pid_t child_b_id;
 
+  // Create first child
   pid_t pid = fork();
   if (pid == ERROR)
   {
@@ -71,18 +74,24 @@ int main(void)
   int child_a_status = __INT_MAX__;
   int child_b_status = __INT_MAX__;
 
+  // Wait for 2 children to terminate.
+  // NOTE: As child b waits for child a input, child b will always terminate first.
   for (int i = 0; i < CHILD_COUNT; ++i)
   {
     int status = __INT_MAX__;
     int child_pid = wait(&status);
 
+    // If-statement to determine which child is terminated.
     if ((long)child_pid == child_a_id)
     {
       child_a_status = status;
+      close(fd[WRITE]); // Close after writing to avoid block of reader
     }
     else if ((long)child_pid == child_b_id)
     {
+      // Since no writer attached, the pipe will return EOF on read, terminating nl.
       child_b_status = status;
+      close(fd[READ]);
     }
     else if ((long)child_pid == ERROR)
     {
@@ -95,8 +104,6 @@ int main(void)
       exit(EXIT_FAILURE);
     }
   }
-
-  // TODO: Kill child b, since nl waits for CTRL+D
 
   return child_a_status == 0 && child_b_status == 0;
 }
