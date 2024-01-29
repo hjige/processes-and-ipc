@@ -12,8 +12,10 @@
  * Returns true if a string only contains white space characters. Otherwise
  * returns false.
  */
-bool empty(char* str) {
-  while (*str) {
+bool empty(char *str)
+{
+  while (*str)
+  {
     if (!isspace(*str++))
       return false;
   }
@@ -24,8 +26,10 @@ bool empty(char* str) {
  *  Strip whitespace (tabs, spaces, etc) from the beginning of a
  *  string.
  */
-char* ltrim(char* s) {
-  while (isspace((int)*s)) ++s;
+char *ltrim(char *s)
+{
+  while (isspace((int)*s))
+    ++s;
   return s;
 }
 
@@ -33,18 +37,20 @@ char* ltrim(char* s) {
  *  Strip whitespace (tabs, spaces, etc) from the end of a
  *  string.
  */
-char* rtrim(char* str) {
-  if(*str == 0 )
+char *rtrim(char *str)
+{
+  if (*str == 0)
     return str;
-  else {
-    char* back = str + strlen(str)-1;  // Pointer to last char in str.
+  else
+  {
+    char *back = str + strlen(str) - 1; // Pointer to last char in str.
 
-    while( isspace( *back) ) back--;   // While trailing whitespace move pointer-
+    while (isspace(*back))
+      back--; // While trailing whitespace move pointer-
 
-    *(back+1) = 0; // Done, add terminating '\0'.
+    *(back + 1) = 0; // Done, add terminating '\0'.
 
     return str;
-
   }
 }
 
@@ -52,10 +58,12 @@ char* rtrim(char* str) {
  *  Strip whitespace (tabs, spaces, etc) from the beginning and the
  *  end of a string.
  */
-char* trim(char* str) {
+char *trim(char *str)
+{
   if (str != NULL)
-    return(ltrim(rtrim(str)));
-  else return NULL;
+    return (ltrim(rtrim(str)));
+  else
+    return NULL;
 }
 
 /**
@@ -63,7 +71,8 @@ char* trim(char* str) {
  *  with pointers to each token. Each such token pointer points to a sub string
  *  in str.
  */
-void get_argv(char* str, const char* delim, char* argv[]) {
+void get_argv(char *str, const char *delim, char *argv[])
+{
 
   char *token;
   int i = 0;
@@ -72,7 +81,8 @@ void get_argv(char* str, const char* delim, char* argv[]) {
   token = strtok(str, delim);
 
   /* walk through other tokens */
-  while( token != NULL ) {
+  while (token != NULL)
+  {
     argv[i] = token;
     token = strtok(NULL, delim);
     i++;
@@ -83,11 +93,13 @@ void get_argv(char* str, const char* delim, char* argv[]) {
 /**
  * Prints out the elements of the argument vector argv.
  */
-void print_argv(char* argv[]) {
+void print_argv(char *argv[])
+{
   int i = 0;
-  char* s;
+  char *s;
 
-  while ((s = argv[i])) {
+  while ((s = argv[i]))
+  {
     printf("  argv[%d] = %s\n", i, s);
     i++;
   }
@@ -98,7 +110,8 @@ void print_argv(char* argv[]) {
  * each delim character with NULL. Populates the cmds array with pointers to
  * each sub command. Each such pointer is a pointer to a sub string in str.
  */
-void parse_cmds(char* str, const char* delim, char* cmds[]) {
+void parse_cmds(char *str, const char *delim, char *cmds[])
+{
 
   char *token;
   int i = 0;
@@ -107,8 +120,10 @@ void parse_cmds(char* str, const char* delim, char* cmds[]) {
   token = strtok(str, delim);
 
   /* walk through other tokens */
-  while( token != NULL ) {
-    if (empty(token)) {
+  while (token != NULL)
+  {
+    if (empty(token))
+    {
       fprintf(stderr, "Parser error: EMPTY command!\n");
       exit(EXIT_FAILURE);
     }
@@ -124,9 +139,11 @@ void parse_cmds(char* str, const char* delim, char* cmds[]) {
  * Converts a pos_t position (single, first, middle or last) to a string
  * ("single", "first", "middle", "last").
  */
-char* position_to_string(position_t pos) {
+char *position_to_string(position_t pos)
+{
 
-  switch (pos) {
+  switch (pos)
+  {
   case single:
     return "single";
   case first:
@@ -149,10 +166,25 @@ char* position_to_string(position_t pos) {
  * Returns the position (single, first, middle or last) of the command at index
  * i.
  */
-position_t cmd_position(int i, int n) {
-  if (i == 0 && n == 1) return single;
-
-  // TODO: Add more cases ...
+position_t cmd_position(int i, int n)
+{
+  if (i == 0 && n == 1)
+    return single;
+  if (n >= 2)
+  {
+    if (i == 0)
+    {
+      return first;
+    }
+    else if (i == n - 1)
+    {
+      return last;
+    }
+    else if (i > 0 && i < n)
+    {
+      return middle;
+    }
+  }
 
   return unknown;
 }
@@ -167,18 +199,20 @@ position_t cmd_position(int i, int n) {
  *
  *  Returns the numnber of parsed commands.
  */
-int first_pass(char *str, cmd_t* commands) {
-  char* cmds[MAX_COMMANDS];
+int first_pass(char *str, cmd_t *commands)
+{
+  char *cmds[MAX_COMMANDS];
 
   parse_cmds(str, "|", cmds);
 
   int i = 0;
 
-  while (cmds[i]) {
+  while (cmds[i])
+  {
     commands[i].pos = unknown;
     get_argv(cmds[i], " ", commands[i].argv);
-    commands[i].in   = STDIN_FILENO;
-    commands[i].out  = STDOUT_FILENO;
+    commands[i].in = STDIN_FILENO;
+    commands[i].out = STDOUT_FILENO;
     i++;
   }
 
@@ -189,8 +223,10 @@ int first_pass(char *str, cmd_t* commands) {
  * After the first pass, we can find out each commands position (single, first,
  * middle or last).
  */
-void second_pass(cmd_t* commands, int n){
-  for (int i = 0; i < n; i++) {
+void second_pass(cmd_t *commands, int n)
+{
+  for (int i = 0; i < n; i++)
+  {
     commands[i].pos = cmd_position(i, n);
   }
 }
@@ -199,7 +235,8 @@ void second_pass(cmd_t* commands, int n){
  *  Parses the string str and populates the commands array with data for each
  *  command.
  */
-int parse_commands(char *str, cmd_t* commands) {
+int parse_commands(char *str, cmd_t *commands)
+{
   int n = first_pass(str, commands);
   second_pass(commands, n);
   return n;

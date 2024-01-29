@@ -4,7 +4,7 @@ CC=gcc
 CFLAGS=-std=gnu99 -Werror -Wall
 LDFLAGS=
 
-ifeq ($DEBUG), y)
+ifeq ($(DEBUG), y)
 	CFLAGS += -DDEBUG -g
 else
 	CFLAGS += -O2
