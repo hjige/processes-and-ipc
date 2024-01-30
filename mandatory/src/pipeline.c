@@ -14,6 +14,7 @@
 void child_a(int fd[])
 {
   dup2(fd[WRITE], STDOUT);
+  // Close the read-end of the pipe not used by the child.
   close(fd[READ]);
   execlp("ls", "ls", "-F", "-1", NULL);
 
@@ -24,7 +25,7 @@ void child_a(int fd[])
 void child_b(int fd[])
 {
   dup2(fd[READ], STDIN);
-  close(fd[WRITE]);
+  // Write-end of pipe is already closed by parent.
   execlp("nl", "nl", NULL);
 
   perror("Return from execlp() not expected");
@@ -43,7 +44,7 @@ int main(void)
   pid_t child_a_id;
   pid_t child_b_id;
 
-  // Create first child
+  // Create first child, who uses write-end of pipe.
   pid_t pid = fork();
   if (pid == ERROR)
   {
@@ -55,9 +56,11 @@ int main(void)
     child_a(fd);
   }
 
+  // Close write-end to avoid block of reader.
+  close(fd[WRITE]);
   child_a_id = pid;
 
-  // Create second child
+  // Create second child, who uses read-end of pipe.
   pid = fork();
   if (pid == ERROR)
   {
@@ -69,6 +72,8 @@ int main(void)
     child_b(fd);
   }
 
+  // Parent has closed both ends of pipe.
+  close(fd[READ]);
   child_b_id = pid;
 
   int child_a_status = __INT_MAX__;
@@ -85,13 +90,11 @@ int main(void)
     if ((long)child_pid == child_a_id)
     {
       child_a_status = status;
-      close(fd[WRITE]); // Close after writing to avoid block of reader
     }
     else if ((long)child_pid == child_b_id)
     {
       // Since no writer attached, the pipe will return EOF on read, terminating nl.
       child_b_status = status;
-      close(fd[READ]);
     }
     else if ((long)child_pid == ERROR)
     {
