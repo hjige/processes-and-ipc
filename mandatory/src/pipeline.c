@@ -108,5 +108,10 @@ int main(void)
     }
   }
 
-  return child_a_status == 0 && child_b_status == 0;
+  if (WIFEXITED(child_a_status) && WIFEXITED(child_b_status)) {
+    return WEXITSTATUS(child_a_status) == 0 && WEXITSTATUS(child_b_status) == 0;
+  } else {
+    perror("Unexpected exit status failed of a child");
+    exit(EXIT_FAILURE);
+  }
 }
