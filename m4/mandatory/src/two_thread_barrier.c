@@ -26,7 +26,6 @@
 #define MAX_SLEEP_TIME  3   // Max sleep time (seconds) for each thread. 
 
 #define EMPTY_SEM 0
-#define N
 
 /**
  *  Declare global semaphore variables. Note, they must be initialized, for 
