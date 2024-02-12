@@ -82,7 +82,13 @@ inc_mutex(void *arg __attribute__((unused)))
     for (i = 0; i < INC_ITERATIONS; i++) {
         /* TODO: Protect access to the shared variable counter with a mutex lock
          * inside the loop. */
+        
+        pthread_mutex_lock(&mutex);
+
+        // Critical section
         counter += INCREMENT;
+
+        pthread_mutex_unlock(&mutex);
     }
 
     return NULL;
@@ -95,9 +101,12 @@ dec_mutex(void *arg __attribute__((unused)))
     int i;
 
     for (i = 0; i < DEC_ITERATIONS; i++) {
-        /* TODO: Protect access to the shared variable counter with a mutex lock
-         * inside the loop. */
+        pthread_mutex_lock(&mutex);
+        
+        // Critical section
         counter -= DECREMENT;
+        
+        pthread_mutex_unlock(&mutex);
     }
 
     return NULL;
