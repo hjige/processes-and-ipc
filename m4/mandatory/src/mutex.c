@@ -83,12 +83,18 @@ inc_mutex(void *arg __attribute__((unused)))
         /* TODO: Protect access to the shared variable counter with a mutex lock
          * inside the loop. */
         
-        pthread_mutex_lock(&mutex);
+        // Returns non-zero if an error occured.
+        if (pthread_mutex_lock(&mutex) == 0) {
+            // Critical section
+            counter += INCREMENT;
+        } else {
+            exit(EXIT_FAILURE);
+        }
 
-        // Critical section
-        counter += INCREMENT;
-
-        pthread_mutex_unlock(&mutex);
+        // Returns non-zero if an error occured.
+        if (pthread_mutex_unlock(&mutex) != 0){
+            exit(EXIT_FAILURE);
+        }
     }
 
     return NULL;
@@ -101,12 +107,16 @@ dec_mutex(void *arg __attribute__((unused)))
     int i;
 
     for (i = 0; i < DEC_ITERATIONS; i++) {
-        pthread_mutex_lock(&mutex);
-        
+        if (pthread_mutex_lock(&mutex) == 0) {
         // Critical section
-        counter -= DECREMENT;
+            counter -= DECREMENT;
+        } else {
+            exit(EXIT_FAILURE);
+        }
         
-        pthread_mutex_unlock(&mutex);
+        if (pthread_mutex_unlock(&mutex) != 0) {
+            exit(EXIT_FAILURE);
+        }
     }
 
     return NULL;
@@ -119,10 +129,16 @@ dec_mutex(void *arg __attribute__((unused)))
 
 void spin_lock() {
     /* TODO: Implement the lock operation for a test-and-set spinlock. */
+    while (__sync_lock_test_and_set(&lock, true)) {
+        // Do nothing, we did not aquire the lock.
+    }
+    // We successfully obtained the lock!
 }
 
 void spin_unlock() {
     /* TODO: Implement the unlock operation for a test-and-set spinlock. */
+    __sync_lock_release(&lock);
+    // We've released the lock.
 }
 
 /* Increments of the shared counter should be protected by a test-and-set spinlock */
@@ -133,7 +149,12 @@ inc_tas_spinlock(void *arg __attribute__((unused)))
 
     for (i = 0; i < INC_ITERATIONS; i++) {
         /* TODO: Add the spin_lock() and spin_unlock() operations inside the loop. */
+        spin_lock();
+        
+        // Critical section
         counter += INCREMENT;
+        
+        spin_unlock();
     }
 
     return NULL;
@@ -147,7 +168,12 @@ dec_tas_spinlock(void *arg __attribute__((unused)))
 
     for (i = 0; i < DEC_ITERATIONS; i++) {
         /* TODO: Add the spin_lock() and spin_unlock() operations inside the loop. */
+        spin_lock();
+        
+        // Critical section
         counter -= DECREMENT;
+        
+        spin_unlock();
     }
 
     return NULL;
@@ -166,8 +192,9 @@ inc_atomic(void *arg __attribute__((unused)))
 
     for (i = 0; i < INC_ITERATIONS; i++) {
         /* TODO: Use atomic addition to increment the shared counter */
-
-        counter += INCREMENT; // You need to replace this.
+        
+        __sync_fetch_and_add(&counter, INCREMENT);
+        // counter += INCREMENT; // You need to replace this.
     }
 
     return NULL;
@@ -181,8 +208,9 @@ dec_atomic(void *arg __attribute__((unused)))
 
     for (i = 0; i < DEC_ITERATIONS; i++) {
         /* TODO: Use atomic subtraction to increment the shared counter */
-
-        counter -= DECREMENT; // You need to replace this.
+        
+        __sync_fetch_and_sub(&counter, DECREMENT);
+        // counter -= DECREMENT; // You need to replace this.
     }
 
     return NULL;
