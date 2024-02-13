@@ -62,6 +62,7 @@ void fork_cmd(int i)
   bool is_first_or_mid = commands[i].pos == first || commands[i].pos == middle;
   if (is_first_or_mid)
   {
+    // Create pipe
     if (pipe(fd) == ERROR)
     {
       perror("Unexpected failure when creating pipe");
@@ -69,6 +70,7 @@ void fork_cmd(int i)
     }
     else
     {
+      // Save creaded pipe's fd's table indexes.
       commands[i].out = fd[WRITE];
       commands[i + 1].in = fd[READ];
     }
@@ -80,16 +82,20 @@ void fork_cmd(int i)
     fork_error();
   case 0:
     // Child process after a successful fork().
-    if (commands[i].in != STDIN_FILENO)
-    {
-      dup2(commands[i].in, STDIN_FILENO);
-      // Write end of this pipe already closed by parent.
-    }
 
+    // Set stdout to pipe producer end.
     if (commands[i].out != STDOUT_FILENO)
     {
       dup2(commands[i].out, STDOUT_FILENO);
-      close(fd[READ]); // Close the end of the pipe not used by this process
+      // Close the read end of the pipe, not used by this process.
+      close(fd[READ]);
+    }
+
+    // Set stdin to pipe consumer end.
+    if (commands[i].in != STDIN_FILENO)
+    {
+      dup2(commands[i].in, STDIN_FILENO);
+      // Write end of this pipe already closed by parent on previous iteration.
     }
 
     // Execute the command in the contex of the child process.
@@ -101,12 +107,12 @@ void fork_cmd(int i)
 
   default:
     // Parent process after a successful fork().
+
     if (is_first_or_mid)
     {
-      // Already created child for write end.
+      // Already created child for write end, so producer fd can be safely closed.
       close(fd[WRITE]);
     }
-    printf("PID: %ld\n", (long)pid);
 
     break;
   }
@@ -117,10 +123,18 @@ void fork_cmd(int i)
  */
 void fork_commands(int n)
 {
-
   for (int i = 0; i < n; i++)
   {
     fork_cmd(i);
+  }
+
+  // Close all pipe read fds (if any).
+  for (int i = 0; i < n; i++)
+  {
+    if (commands[i].in != STDIN_FILENO)
+    {
+      close(commands[i].in);
+    }
   }
 }
 
@@ -143,16 +157,20 @@ void wait_for_all_cmds(int n)
   for (int i = 0; i < n; i++)
   {
     int status;
-    if ((long)wait(&status) == ERROR)
+    pid_t child_pid = wait(&status);
+
+    if ((long)child_pid == ERROR)
     {
-      perror("Unexpected failure of call to wait()");
-      exit(EXIT_FAILURE);
+      perror("Unexpected exit of child process");
+      exit(EXIT_FAILURE);      
     }
 
-    // Close pipe
-    if (commands[i].in != STDIN_FILENO)
+    if (WIFEXITED(status) && WEXITSTATUS(status) != EXIT_SUCCESS)
     {
-      close(commands[i].in);
+      // grep exits with code "1" if no line was found. 
+      printf("Exit status: %d\n", WEXITSTATUS(status));
+      perror("Unexpected exit of child process");
+      exit(EXIT_FAILURE);
     }
   }
 }
@@ -173,7 +191,7 @@ int main()
 
     fork_commands(n);
 
-    print_commands(n); // TODO: Remove this debug line
+    // print_commands(n); // TODO: Remove this debug line
 
     wait_for_all_cmds(n);
   }
