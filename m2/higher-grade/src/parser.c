@@ -206,7 +206,7 @@ int first_pass(char *str, cmd_t *commands)
   parse_cmds(str, "|", cmds);
 
   int i = 0;
-
+  
   while (cmds[i])
   {
     commands[i].pos = unknown;

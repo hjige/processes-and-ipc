@@ -57,7 +57,7 @@ void fork_error()
 void fork_cmd(int i)
 {
   pid_t pid;
-
+  
   int fd[2];
   bool is_first_or_mid = commands[i].pos == first || commands[i].pos == middle;
   if (is_first_or_mid)
@@ -161,7 +161,7 @@ void wait_for_all_cmds(int n)
 
     if ((long)child_pid == ERROR)
     {
-      perror("Unexpected exit of child process");
+      perror("Unexpected error with wait()");
       exit(EXIT_FAILURE);      
     }
 
