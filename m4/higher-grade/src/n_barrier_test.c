@@ -12,6 +12,8 @@
  *
  */
 
+#define _GNU_SOURCE
+
 #include <stdio.h>     // printf()
 #include <stdlib.h>    // abort(), srand(), rand()
 #include <unistd.h>    // sleep()

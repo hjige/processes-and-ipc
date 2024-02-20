@@ -59,6 +59,6 @@ void yield(){
 void  done(){
 }
 
-tid_t join() {
+tid_t join(tid_t thread) {
   return -1;
 }
