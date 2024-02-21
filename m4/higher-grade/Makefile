@@ -4,6 +4,11 @@ OS      := $(shell uname)
 CFLAGS  := -std=gnu99 -Werror -Wall  -Wno-deprecated-declarations -I ../psem
 LDFLAGS :=
 
+ifeq ($(OS), Linux)
+	CFLAGS += -pthread
+	LDLIBS += -pthread -lrt
+endif
+
 ifeq ($(DEBUG), y	)
 	CFLAGS += -DDEBUG -g
 endif
