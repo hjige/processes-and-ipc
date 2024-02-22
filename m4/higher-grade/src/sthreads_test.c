@@ -69,6 +69,7 @@ void fibonacci_slow() {
     }
     printf(" fib(%02d) = %d\n", n, fib(n));
     n = (n + 1) % INT_MAX;
+    yield();
   }
 }
 
@@ -96,6 +97,7 @@ void fibonacci_fast() {
       b = 1;
       n = 0;
     }
+    yield();
   }
 }
 
@@ -119,6 +121,34 @@ void magic_numbers() {
   }
 }
 
+void straight_a() {
+  while (true) {
+      puts("a");
+      yield();
+  }
+}
+
+void straight_b() {
+  while (true) {
+      puts("b");
+      yield();
+  }
+}
+
+void straight_c() {
+  while (true) {
+      puts("c");
+      yield();
+  }
+}
+
+void straight_d() {
+  while (true) {
+      puts("d");
+      yield();
+  }
+}
+
 /*******************************************************************************
                                      main()
 
@@ -130,4 +160,15 @@ int main(){
   puts("\n==== Test program for the Simple Threads API ====\n");
 
   init(); // Initialization
+
+  // spawn(straight_a);
+  // spawn(straight_b);
+  // spawn(straight_c);
+  // spawn(straight_d);
+  spawn(magic_numbers);
+  spawn(fibonacci_fast);
+  spawn(fibonacci_slow);
+  yield();
+
+  printf("this is main\n");
 }

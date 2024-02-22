@@ -27,8 +27,10 @@
                 Add data structures to manage the threads here.
 ********************************************************************************/
 
+thread_t *running_thread = NULL;
 thread_t *ready_queue = NULL;
-tid_t thread_id = 0;  // main thread has id 0
+tid_t thread_id = 0;
+ucontext_t thread_manager_ctx;
 
 
 /*******************************************************************************
@@ -38,7 +40,7 @@ tid_t thread_id = 0;  // main thread has id 0
 ********************************************************************************/
 
 /// @brief pops the first element in the queue, removing it from the queue.
-/// @param queue linked list to pop from.
+/// @param queue ptr to queue to pop from.
 /// @return ptr to thread
 thread_t *pop(thread_t **queue) {
   thread_t *thread_to_return = NULL;
@@ -51,27 +53,33 @@ thread_t *pop(thread_t **queue) {
 }
 
 /// @brief Appends a thread to the end of the queue
-/// @param queue 
+/// @param queue ptr to queue to append to
 /// @param thread_to_append 
 void append(thread_t **queue, thread_t *thread_to_append) {
-  while (*queue != NULL) {
-    queue = &(*queue)->next;
+  if (thread_to_append == NULL) {
+    perror("dereference nullpointer (thread)");
+    exit(EXIT_FAILURE);
   }
-  *queue = thread_to_append;
+  
+  thread_to_append->next = NULL;
+  
+  if (queue == NULL || *queue == NULL) {
+    *queue = thread_to_append;
+    return;
+  }
+
+  thread_t *cursor = *queue;
+  while (cursor->next != NULL) {
+    cursor = cursor->next;
+  }
+  cursor->next = thread_to_append;
 }
 
 /// @brief Creates a new unique thread id
 /// @return a unique thread id
 tid_t create_thread_id() {
-  thread_id++;
+  thread_id++;  // Global variable
   return thread_id;
-}
-
-init_thread(thread_t* thread) {
-  thread->tid = create_thread_id();
-  thread->state = ready;
-  thread->next = NULL;
-  // TODO: initialize context
 }
 
 /* Initialize a context.
@@ -81,18 +89,16 @@ init_thread(thread_t* thread) {
    next - successor context to activate when ctx returns. If NULL, the thread
           exits when ctx returns.
  */
-void init_context(ucontext_t *ctx, ucontext_t *next) {
+int init_context(ucontext_t *ctx, ucontext_t *next) {
   /* Allocate memory to be used as the stack for the context. */
   void *stack = malloc(STACK_SIZE);
 
   if (stack == NULL) {
-    perror("Allocating stack");
-    exit(EXIT_FAILURE);
+    return -1;
   }
 
   if (getcontext(ctx) < 0) {
-    perror("getcontext");
-    exit(EXIT_FAILURE);
+    return -1;
   }
 
   /* Before invoking makecontext(ctx), the caller must allocate a new stack for
@@ -104,6 +110,30 @@ void init_context(ucontext_t *ctx, ucontext_t *next) {
   ctx->uc_stack.ss_sp    = stack;
   ctx->uc_stack.ss_size  = STACK_SIZE;
   ctx->uc_stack.ss_flags = 0;
+
+  return 1;
+}
+
+/// @brief 
+/// @param thread 
+/// @param func 
+int init_thread(thread_t* thread, void (*func)()) {
+  thread->tid = create_thread_id();
+  thread->state = ready;
+  thread->next = NULL;
+
+  if (init_context(&(thread->ctx), &thread_manager_ctx) == -1){
+    return -1;
+  } 
+  
+  makecontext(&(thread->ctx), func, 0);
+  
+  return (int) thread->tid;
+}
+
+/// @brief 
+void manage_threads() {
+  // TODO:
 }
 
 /*******************************************************************************
@@ -111,20 +141,55 @@ void init_context(ucontext_t *ctx, ucontext_t *next) {
 ********************************************************************************/
 
 
-int  init(){
-  // Create a thread manager thread?
+int init(){
+  if (init_context(&thread_manager_ctx, NULL) == -1){
+    return -1;
+  } 
+
   return 1;
+  makecontext(&thread_manager_ctx, manage_threads, 0);
 }
 
 tid_t spawn(void (*start)()){
   // TODO: Implement function
   thread_t *new_thread = calloc(1, sizeof(thread_t));
-  init_thread(new_thread);
-  return -1;
+  if (new_thread == NULL) {
+    return -1;
+  }
+
+  if (init_thread(new_thread, start) == -1){
+    return -1;
+  }
+
+  append(&ready_queue, new_thread);
+
+  return new_thread->tid;
 }
 
 void yield(){
-  // TODO: Implement function
+  if (ready_queue == NULL) {
+    return;
+  } else if (running_thread == NULL) {
+    // Currently running in main thread.
+    running_thread = pop(&(ready_queue));
+    running_thread->state = running;
+    
+    printf("thread: %d -> running\n", (int) running_thread->tid);
+    setcontext(&(running_thread->ctx));
+  } else {
+    thread_t *old_running_thread = running_thread;
+    old_running_thread->state = ready;
+    
+    append(&ready_queue, old_running_thread);
+    
+    running_thread = pop(&ready_queue);
+    running_thread->state = running;
+
+    printf("thread: %d -> ready\n", (int) old_running_thread->tid);
+    printf("thread: %d -> running\n", (int) running_thread->tid);
+
+    swapcontext(&old_running_thread->ctx, &running_thread->ctx);
+  }
 }
 
 void  done(){
