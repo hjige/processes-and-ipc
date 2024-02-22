@@ -26,6 +26,7 @@ typedef struct thread thread_t;
 */
 struct thread {
   tid_t tid;
+  tid_t waiting_for;
   state_t state;
   ucontext_t ctx;
   thread_t *next; /* can use this to create a linked list of threads */
@@ -87,6 +88,6 @@ void  done();
    thread id thread calls done and join() should then return the thread id of the
    terminated thread.
 */
-tid_t join(tid_t thread);
+tid_t join(tid_t thread_id);
 
 #endif

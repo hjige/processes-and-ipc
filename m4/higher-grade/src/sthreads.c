@@ -29,6 +29,7 @@
 
 thread_t *running_thread = NULL;
 thread_t *ready_queue = NULL;
+thread_t *waiting_queue = NULL;
 tid_t thread_id = 0;
 ucontext_t thread_manager_ctx;
 
@@ -38,6 +39,8 @@ ucontext_t thread_manager_ctx;
 
                       Add internal helper functions here.
 ********************************************************************************/
+
+
 
 /// @brief pops the first element in the queue, removing it from the queue.
 /// @param queue ptr to queue to pop from.
@@ -60,7 +63,7 @@ void append(thread_t **queue, thread_t *thread_to_append) {
     perror("dereference nullpointer (thread)");
     exit(EXIT_FAILURE);
   }
-  
+
   thread_to_append->next = NULL;
   
   if (queue == NULL || *queue == NULL) {
@@ -136,6 +139,29 @@ void manage_threads() {
   // TODO:
 }
 
+void find_waiting_threads(tid_t terminated_thread){
+  if (waiting_queue == NULL){
+    return;
+  }
+  
+  thread_t *current = waiting_queue;
+  while(current != NULL){
+    if (terminated_thread == current->waiting_for){
+      // TODO: unlink from waiting
+
+
+      // TODO: append to ready
+    }
+    
+  }
+  
+}
+
+void destroy_thread(thread_t *thread) {
+  free(thread->ctx.uc_stack.ss_sp);
+  free(thread);
+}
+
 /*******************************************************************************
                     Implementation of the Simple Threads API
 ********************************************************************************/
@@ -193,8 +219,29 @@ void yield(){
 }
 
 void  done(){
+  // TODO: handle thread to terminate.
+  thread_t *terminated_thread = running_thread;
+  terminated_thread->state = terminated;
+  
+  find_waiting_threads(terminated_thread->tid);
+  //TODO: find all threads in waiting list that waits for this thread,
+  //TODO: set them to ready and move from waiting list to ready list.
+
+  destroy_thread(terminated_thread);  
 }
 
-tid_t join(tid_t thread) {
-  return -1;
+tid_t join(tid_t thread_id) {
+  thread_t *thread_to_wait = running_thread;
+  thread_to_wait->waiting_for = thread_id;
+  thread_to_wait->state = waiting;
+  append(&waiting_queue, thread_to_wait);
+
+  running_thread = pop(&ready_queue);
+  running_thread->state = running;
+  
+  printf("thread: '%d' waiting for thread '%d' to terminate\n", thread_to_wait->tid, thread_to_wait->waiting_for);
+
+  swapcontext(&thread_to_wait->ctx, &running_thread->ctx);
+
+  return thread_to_wait->waiting_for;
 }
