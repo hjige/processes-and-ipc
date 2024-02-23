@@ -49,7 +49,7 @@ thread_t *pop(thread_t **queue) {
   thread_t *thread_to_return = NULL;
   if (*queue != NULL) {
     thread_to_return = *queue;
-    *queue = (*queue)->next; 
+    *queue = (*queue)->next;
   }
 
   return thread_to_return;
@@ -81,8 +81,8 @@ void append(thread_t **queue, thread_t *thread_to_append) {
 /// @brief Creates a new unique thread id
 /// @return a unique thread id
 tid_t create_thread_id() {
-  thread_id++;  // Global variable
-  return thread_id;
+  // Global variable
+  return thread_id++;
 }
 
 /* Initialize a context.
@@ -168,12 +168,25 @@ void destroy_thread(thread_t *thread) {
 
 
 int init(){
+  // Create thread manager, to handle threads that terminate
   if (init_context(&thread_manager_ctx, NULL) == -1){
+    return -1;
+  }
+  makecontext(&thread_manager_ctx, manage_threads, 0);
+
+  // Create the main thread.
+  thread_t *main_thread = calloc(1, sizeof(thread_t));
+  main_thread->tid = create_thread_id();
+  main_thread->next = NULL;
+  if (init_context(&(main_thread->ctx), &thread_manager_ctx) == -1){
     return -1;
   } 
 
+  // Set main process as the currently running
+  main_thread->state = running;
+  running_thread = main_thread;
+
   return 1;
-  makecontext(&thread_manager_ctx, manage_threads, 0);
 }
 
 tid_t spawn(void (*start)()){
@@ -195,13 +208,6 @@ tid_t spawn(void (*start)()){
 void yield(){
   if (ready_queue == NULL) {
     return;
-  } else if (running_thread == NULL) {
-    // Currently running in main thread.
-    running_thread = pop(&(ready_queue));
-    running_thread->state = running;
-    
-    printf("thread: %d -> running\n", (int) running_thread->tid);
-    setcontext(&(running_thread->ctx));
   } else {
     thread_t *old_running_thread = running_thread;
     old_running_thread->state = ready;

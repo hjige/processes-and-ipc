@@ -149,6 +149,13 @@ void straight_d() {
   }
 }
 
+void i_will_yield() {
+  while(true) {
+    puts("I am thread");
+    yield();
+  }
+}
+
 /*******************************************************************************
                                      main()
 
@@ -165,10 +172,17 @@ int main(){
   // spawn(straight_b);
   // spawn(straight_c);
   // spawn(straight_d);
-  spawn(magic_numbers);
-  spawn(fibonacci_fast);
-  spawn(fibonacci_slow);
-  yield();
+  // spawn(magic_numbers);
+  // spawn(fibonacci_fast);
+  // spawn(fibonacci_slow);
+  // yield();
+
+  spawn(i_will_yield);
+
+  for (int i = 0; i < 10; i++) {
+    puts("MAIN");
+    yield();
+  }
 
   printf("this is main\n");
 }
