@@ -156,6 +156,27 @@ void i_will_yield() {
   }
 }
 
+void i_am_done_a() {
+  while(true) {
+    puts("a is done");
+    done();
+  }
+}
+
+void i_am_done_b() {
+  while(true) {
+    puts("b is done");
+    done();
+  }
+}
+
+void i_am_done_c() {
+  while(true) {
+    puts("c is done");
+    done();
+  }
+}
+
 /*******************************************************************************
                                      main()
 
@@ -177,12 +198,23 @@ int main(){
   // spawn(fibonacci_slow);
   // yield();
 
-  spawn(i_will_yield);
+  tid_t a = spawn(i_am_done_a);
+  tid_t b = spawn(i_am_done_b);
+  tid_t c = spawn(i_am_done_c);
 
-  for (int i = 0; i < 10; i++) {
-    puts("MAIN");
-    yield();
-  }
+  puts("in MAIN");
+  
+  puts("waiting for a");
+  join(a);
+  puts("successfully waited on a");
+  
+  puts("waiting for b");
+  join(b);
+  puts("successfully waited on b");
+  
+  puts("waiting for c");
+  join(c);
+  puts("successfully waited on c");
 
-  printf("this is main\n");
+  printf("back in main\n");
 }

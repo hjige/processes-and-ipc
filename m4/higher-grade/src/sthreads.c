@@ -44,7 +44,7 @@ ucontext_t thread_manager_ctx;
 
 /// @brief pops the first element in the queue, removing it from the queue.
 /// @param queue ptr to queue to pop from.
-/// @return ptr to thread
+/// @return ptr to thread.
 thread_t *pop(thread_t **queue) {
   thread_t *thread_to_return = NULL;
   if (*queue != NULL) {
@@ -55,9 +55,9 @@ thread_t *pop(thread_t **queue) {
   return thread_to_return;
 }
 
-/// @brief Appends a thread to the end of the queue
-/// @param queue ptr to queue to append to
-/// @param thread_to_append 
+/// @brief Appends a thread to the end of the queue, setting its next field to NULL.
+/// @param queue ptr to queue to append to.
+/// @param thread_to_append thread to append to queue.
 void append(thread_t **queue, thread_t *thread_to_append) {
   if (thread_to_append == NULL) {
     perror("dereference nullpointer (thread)");
@@ -78,6 +78,18 @@ void append(thread_t **queue, thread_t *thread_to_append) {
   cursor->next = thread_to_append;
 }
 
+bool contains_thread(thread_t **queue, tid_t thread_to_find) {
+  thread_t **cursor = queue;
+  while (*cursor != NULL) {
+    if ((*cursor)->tid == thread_to_find) {
+      return true;
+    }
+
+    cursor = &(*cursor)->next;
+  }
+  return false;
+}
+
 /// @brief Creates a new unique thread id
 /// @return a unique thread id
 tid_t create_thread_id() {
@@ -85,13 +97,12 @@ tid_t create_thread_id() {
   return thread_id++;
 }
 
-/* Initialize a context.
 
-   ctxt - context to initialize.
-
-   next - successor context to activate when ctx returns. If NULL, the thread
-          exits when ctx returns.
- */
+/// @brief Initialize a context.
+/// @param ctxt context to initialize.
+/// @param next successor context to activate when ctx returns. If NULL, the thread
+///             exits when ctx returns.
+/// @return 1 on successful init, else -1
 int init_context(ucontext_t *ctx, ucontext_t *next) {
   /* Allocate memory to be used as the stack for the context. */
   void *stack = malloc(STACK_SIZE);
@@ -117,9 +128,11 @@ int init_context(ucontext_t *ctx, ucontext_t *next) {
   return 1;
 }
 
-/// @brief 
-/// @param thread 
-/// @param func 
+/// @brief initialises a thread.
+/// @param thread thread struct to initialize.
+/// @param func function to start thread in.
+/// @return the tid of the initialized thread,
+///         -1 if thread context could not be initialised.
 int init_thread(thread_t* thread, void (*func)()) {
   thread->tid = create_thread_id();
   thread->state = ready;
@@ -134,32 +147,60 @@ int init_thread(thread_t* thread, void (*func)()) {
   return (int) thread->tid;
 }
 
-/// @brief 
-void manage_threads() {
-  // TODO:
-}
-
-void find_waiting_threads(tid_t terminated_thread){
+/// @brief Sets all threads that are waiting for terminated thread to ready. 
+/// @param terminated_thread tid of terminated thread.
+void set_waiting_threads_to_ready(tid_t terminated_thread){
   if (waiting_queue == NULL){
     return;
   }
-  
-  thread_t *current = waiting_queue;
-  while(current != NULL){
-    if (terminated_thread == current->waiting_for){
-      // TODO: unlink from waiting
+  thread_t **cursor = &waiting_queue;
+  while (*cursor != NULL) {
+    if (terminated_thread == (*cursor)->waiting_for){
+      thread_t *thread_to_rdy = *cursor;
 
+      // Remember the next thread in waiting queue
+      thread_t *next = thread_to_rdy->next;
+      // Unlink from waiting
+      thread_to_rdy->next = NULL;
+      
+      // Append thread finished to wait to ready
+      thread_to_rdy->state = ready;
+      append(&ready_queue, thread_to_rdy);
 
-      // TODO: append to ready
+      *cursor = next;
+    } else {
+      cursor = &(*cursor)->next;
     }
-    
   }
-  
 }
 
+/// @brief Destroys a thread allocated on the heap.
+/// @param thread thread to destroy
 void destroy_thread(thread_t *thread) {
   free(thread->ctx.uc_stack.ss_sp);
   free(thread);
+}
+
+/// @brief Terminates the running thread, 
+void manage_threads() {
+  thread_t *terminated_thread = running_thread;
+  terminated_thread->state = terminated;
+  
+  set_waiting_threads_to_ready(terminated_thread->tid);
+
+  destroy_thread(terminated_thread);
+
+  // Set next ready thread to running
+  running_thread = pop(&ready_queue);
+  if (running_thread == NULL) {
+    // No more threads, we can exit
+    exit(EXIT_SUCCESS);
+  }
+  running_thread->state = running;
+  running_thread->next = NULL;
+
+  // Resume thread execution
+  setcontext(&running_thread->ctx);
 }
 
 /*******************************************************************************
@@ -225,18 +266,17 @@ void yield(){
 }
 
 void  done(){
-  // TODO: handle thread to terminate.
-  thread_t *terminated_thread = running_thread;
-  terminated_thread->state = terminated;
-  
-  find_waiting_threads(terminated_thread->tid);
-  //TODO: find all threads in waiting list that waits for this thread,
-  //TODO: set them to ready and move from waiting list to ready list.
-
-  destroy_thread(terminated_thread);  
+  setcontext(&thread_manager_ctx);
 }
 
 tid_t join(tid_t thread_id) {
+  if (running_thread->tid != thread_id &&
+      !contains_thread(&ready_queue, thread_id) &&
+      !contains_thread(&waiting_queue, thread_id)) {
+    // Thread is not running, waiting nor ready. It must be dead.
+    return thread_id;
+  }
+
   thread_t *thread_to_wait = running_thread;
   thread_to_wait->waiting_for = thread_id;
   thread_to_wait->state = waiting;
