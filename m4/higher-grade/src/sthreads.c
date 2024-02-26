@@ -197,6 +197,8 @@ void destroy_thread(thread_t *thread) {
 void manage_threads() {
   PAUSE_TIMER();
 
+  puts("TERMINATION");
+
   thread_t *terminated_thread = running_thread;
   terminated_thread->state = terminated;
   
@@ -215,7 +217,7 @@ void manage_threads() {
   running_thread->next = NULL;
 
   // Resume execution of next thread in the ready queue.
-  printf("thread '%d' -> running", running_thread->tid);
+  printf("thread '%d' -> running\n", running_thread->tid);
   RESET_TIMER();
   setcontext(&running_thread->ctx);
 }
@@ -331,6 +333,9 @@ int init(int timeslice_in_ms){
 }
 
 tid_t spawn(void (*start)()){
+  // Avoid timer expiring during spawn.
+  PAUSE_TIMER();
+
   thread_t *new_thread = calloc(1, sizeof(thread_t));
   if (new_thread == NULL) {
     return FAILURE;
@@ -343,6 +348,7 @@ tid_t spawn(void (*start)()){
   printf("new thread: '%d'\n", new_thread->tid);
   append(&ready_queue, new_thread);
 
+  RESUME_TIMER();
   return new_thread->tid;
 }
 

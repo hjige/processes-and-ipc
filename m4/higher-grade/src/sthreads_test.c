@@ -58,9 +58,10 @@ int fib(int n) {
 */
 
 void fibonacci_slow() {
+  int counter = 0;
   int n = 0;
   int f;
-  while (true) {
+  while (counter < 35) {
     f = fib(n);
     if (f < 0) {
       // Restart on overflow.
@@ -69,6 +70,7 @@ void fibonacci_slow() {
     printf(" fib(%02d) = %d\n", n, fib(n));
     n = (n + 1) % INT_MAX;
     // yield();
+    counter++;
   }
 }
 
@@ -123,68 +125,87 @@ void magic_numbers() {
   done();
 }
 
-void straight_a() {
-  while (true) {
-      puts("a");
-      yield();
+void done_a() {
+  int n = 0;
+  while(n < 4) {
+    puts(" a");
+    n++;
+    sleep(1);
   }
+  puts(" a is done");
+  done();
 }
 
-void straight_b() {
-  while (true) {
-      puts("b");
-      yield();
+void done_b() {
+  int n = 0;
+  while(n < 7) {
+    puts(" b");
+    n++;
+    sleep(1);
   }
+  puts(" b returns");
+  return;
 }
 
-void straight_c() {
-  while (true) {
-      puts("c");
-      yield();
+void done_c() {
+  int n = 0;
+  while(n < 9) {
+    puts(" c");
+    n++;
+    sleep(1);
   }
+  puts(" c is done");
+  done();
 }
 
-void straight_d() {
-  while (true) {
-      puts("d");
-      yield();
-  }
-}
 
-void i_will_yield() {
+
+// FOREVER /W SLEEP
+void forever_a() {
   while(true) {
-    puts("I am thread");
+    puts(" a");
+    sleep(1);
+  }
+}
+void forever_b() {
+  while(true) {
+    puts(" b");
+    sleep(1);
+  }
+}
+void forever_c() {
+  while(true) {
+    puts(" c");
+    sleep(1);
+  }
+}
+
+// YIELD
+void yield_a() {
+  while(true) {
+    puts(" a");
     yield();
   }
 }
-
-void i_am_done_a() {
+void yield_b() {
   while(true) {
-    puts("a is done");
-    done();
+    puts(" b");
+    yield();
   }
 }
-
-void i_am_done_b() {
+void yield_c() {
   while(true) {
-    puts("b is done");
-    done();
-  }
-}
-
-void i_am_done_c() {
-  while(true) {
-    puts("c is done");
-    done();
+    puts(" c");
+    yield();
   }
 }
 
 void waiting_magic_numbers(tid_t thread){
   while(true){
     tid_t magic_numbers_thread = spawn(magic_numbers);
-    puts("waiting for magic_numbers");
+    puts(" waiting for magic_numbers");
     join(magic_numbers_thread);
-    puts("magic_numbers done!");
+    puts(" magic_numbers done!");
     
     done();
   }
@@ -193,19 +214,80 @@ void waiting_magic_numbers(tid_t thread){
 void waiting_several(tid_t thread){
   while(true){
     tid_t magic_numbers_thread = spawn(waiting_magic_numbers);
-    tid_t fibonacci_fast_thread = spawn(fibonacci_fast);
+    tid_t fibonacci_slow_thread = spawn(fibonacci_slow);
     
-    puts("waiting for waiting_magic_numbers");
+    puts(" waiting for waiting_magic_numbers");
     join(magic_numbers_thread);
-    puts("waiting_magic_numbers done!");
+    puts(" waiting_magic_numbers done!");
     
-    puts("waiting for fibonacci fast");
-    join(fibonacci_fast_thread);
-    puts("fibonacci fast done!");
+    puts(" waiting for fibonacci slow");
+    join(fibonacci_slow_thread);
+    puts(" fibonacci slow done!");
 
     done();
   }
 }
+
+/// @brief Non-terminating threads sleeping after each print to exceed time slice.
+void test_preemtion() {
+  init(999);
+
+  spawn(forever_a);
+  spawn(forever_b);
+  spawn(forever_c);
+
+  while(true){
+    puts(" main");
+    sleep(1);
+  }
+}
+
+/// @brief Non-terminating threads, yielding after each print.
+void test_yield() {
+  init(999);
+
+  spawn(yield_a);
+  spawn(yield_b);
+  spawn(yield_c);
+
+  while(true){
+    puts(" main, slowing things down..");
+    // main sleeps whole timeslice, so terminal doesnt get spammed.
+    sleep(1);
+  }
+}
+
+void test_terminate_by_done() {
+  init(999);
+
+  tid_t thread_a = spawn(done_a);
+  tid_t thread_b = spawn(done_b);
+  tid_t thread_c = spawn(done_c);
+
+  while(true){
+    puts(" main");
+    join(thread_a);
+    join(thread_b);
+    join(thread_c);
+    puts(" main is done");
+    done();
+  }
+}
+
+void test_waiting_recursive(){
+  init(50);
+
+  tid_t waiting_thread_magic_numbers = spawn(waiting_magic_numbers);
+  tid_t waiting_several_threads = spawn(waiting_several);
+
+  join(waiting_thread_magic_numbers);
+  puts(" in main: waiting for magic numbers done:");
+  join(waiting_several_threads);
+  puts(" in main: waiting for several threads done:");
+
+}
+
+// TODO: test_terminate_by_return()
 
 /*******************************************************************************
                                      main()
@@ -217,50 +299,10 @@ void waiting_several(tid_t thread){
 int main(){
   puts("\n==== Test program for the Simple Threads API ====\n");
 
-  init(); // Initialization
-
-  // spawn(straight_a);
-  // spawn(straight_b);
-  // spawn(straight_c);
-  // spawn(straight_d);
-  // spawn(magic_numbers);
-  // spawn(fibonacci_fast);
-  // spawn(fibonacci_slow);
-  // yield();
-
-  // tid_t a = spawn(i_am_done_a);
-  // tid_t b = spawn(i_am_done_b);
-  // tid_t c = spawn(i_am_done_c);
-
-  // puts("in MAIN");
-  
-  // puts("waiting for a");
-  // join(a);
-  // puts("successfully waited on a");
-  
-  // puts("waiting for b");
-  // join(b);
-  // puts("successfully waited on b");
-  
-  // puts("waiting for c");
-  // join(c);
-  // puts("successfully waited on c");
-  
-  // tid_t waiting_thread_magic_numbers = spawn(waiting_magic_numbers);
-  // tid_t waiting_several_threads = spawn(waiting_several);
-
-  // join(waiting_thread_magic_numbers);
-  // puts("in main: waiting for magic numbers done:");
-  // join(waiting_several_threads);
-  // puts("in main: waiting for several threads done:");
-
-  spawn(fibonacci_slow);
-  spawn(fibonacci_slow);
-  spawn(fibonacci_slow);
-
-  while(true) {
-    sleep(1);
-  }
+  // test_preemtion();
+  // test_yield();
+  // test_terminate_by_done();
+  test_waiting_recursive();
 
   printf("back in main\n");
 }
