@@ -41,15 +41,13 @@ new functions to the API.
 ********************************************************************************/
 
 
-/* Initialization
-
-   Initialization of global thread management data structures. A user program
-   must call this function exactly once before calling any other functions in
-   the Simple Threads API.
-
-   Returns 1 on success and a negative value on failure.
-*/
-int init();
+/// @brief Initialization of global thread management data structures. A user program
+///        must call this function exactly once before calling any other functions in
+///        the Simple Threads API.
+/// @param timeslice_in_ms time, in microseconds, allotted to each thread before CPU pre-emtion.
+///        if timeslice is set to 0, pre-emtion is disabled.
+/// @return 1 on success and a negative value on failure.
+int init(int timeslice_in_ms);
 
 /* Creates a new thread executing the start function.
 
