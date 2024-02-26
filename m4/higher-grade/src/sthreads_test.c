@@ -85,7 +85,7 @@ void fibonacci_fast() {
   int n = 0;
   int next = a + b;
 
-  while(true) {
+  while(n != 20) {
     printf(" fib(%02d) = %d\n", n, a);
     next = a + b;
     a = b;
@@ -99,6 +99,7 @@ void fibonacci_fast() {
     }
     yield();
   }
+  done();
 }
 
 /* Prints the sequence of magic constants over and over again.
@@ -107,8 +108,8 @@ void fibonacci_fast() {
 */
 void magic_numbers() {
   int n = 3;
-  int m;
-  while (true) {
+  int m = 0;
+  while (m > 10000) {
     m = (n*(n*n+1)/2);
     if (m > 0) {
       printf(" magic(%d) = %d\n", n, m);
@@ -119,6 +120,8 @@ void magic_numbers() {
     }
     yield();
   }
+
+  done();
 }
 
 void straight_a() {
@@ -177,6 +180,34 @@ void i_am_done_c() {
   }
 }
 
+void waiting_magic_numbers(tid_t thread){
+  while(true){
+    tid_t magic_numbers_thread = spawn(magic_numbers);
+    puts("waiting for magic_numbers");
+    join(magic_numbers_thread);
+    puts("magic_numbers done!");
+    
+    done();
+  }
+}
+
+void waiting_several(tid_t thread){
+  while(true){
+    tid_t magic_numbers_thread = spawn(waiting_magic_numbers);
+    tid_t fibonacci_fast_thread = spawn(fibonacci_fast);
+    
+    puts("waiting for waiting_magic_numbers");
+    join(magic_numbers_thread);
+    puts("waiting_magic_numbers done!");
+    
+    puts("waiting for fibonacci fast");
+    join(fibonacci_fast_thread);
+    puts("fibonacci fast done!");
+
+    done();
+  }
+}
+
 /*******************************************************************************
                                      main()
 
@@ -198,23 +229,35 @@ int main(){
   // spawn(fibonacci_slow);
   // yield();
 
-  tid_t a = spawn(i_am_done_a);
-  tid_t b = spawn(i_am_done_b);
-  tid_t c = spawn(i_am_done_c);
+  // tid_t a = spawn(i_am_done_a);
+  // tid_t b = spawn(i_am_done_b);
+  // tid_t c = spawn(i_am_done_c);
 
-  puts("in MAIN");
+
+
+  // puts("in MAIN");
   
-  puts("waiting for a");
-  join(a);
-  puts("successfully waited on a");
+  // puts("waiting for a");
+  // join(a);
+  // puts("successfully waited on a");
   
-  puts("waiting for b");
-  join(b);
-  puts("successfully waited on b");
+  // puts("waiting for b");
+  // join(b);
+  // puts("successfully waited on b");
   
-  puts("waiting for c");
-  join(c);
-  puts("successfully waited on c");
+  // puts("waiting for c");
+  // join(c);
+  // puts("successfully waited on c");
+
+  
+  tid_t waiting_thread_magic_numbers = spawn(waiting_magic_numbers);
+  tid_t waiting_several_threads = spawn(waiting_several);
+
+  join(waiting_thread_magic_numbers);
+  puts("in main: waiting for magic numbers done:");
+  join(waiting_several_threads);
+  puts("in main: waiting for several threads done:");
+
 
   printf("back in main\n");
 }
