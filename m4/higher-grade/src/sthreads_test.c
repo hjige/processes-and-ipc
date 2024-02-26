@@ -2,6 +2,7 @@
 #include <stdio.h>    // printf(), fprintf(), stdout, stderr, perror(), _IOLBF
 #include <stdbool.h>  // true, false
 #include <limits.h>   // INT_MAX
+#include <unistd.h>   // sleep()
 
 #include "sthreads.h" // init(), spawn(), yield(), done()
 
@@ -19,7 +20,6 @@ void numbers() {
     printf(" n = %d\n", n);
     n = (n + 1) % (INT_MAX);
     if (n > 3) done();
-    yield();
   }
 }
 
@@ -31,7 +31,6 @@ void letters() {
   while (true) {
       printf(" c = %c\n", c);
       if (c == 'f') done();
-      yield();
       c = (c == 'z') ? 'a' : c + 1;
     }
 }
@@ -69,7 +68,7 @@ void fibonacci_slow() {
     }
     printf(" fib(%02d) = %d\n", n, fib(n));
     n = (n + 1) % INT_MAX;
-    yield();
+    // yield();
   }
 }
 
@@ -118,7 +117,7 @@ void magic_numbers() {
       // Start over when m overflows.
       n = 3;
     }
-    yield();
+    // yield();
   }
 
   done();
@@ -233,8 +232,6 @@ int main(){
   // tid_t b = spawn(i_am_done_b);
   // tid_t c = spawn(i_am_done_c);
 
-
-
   // puts("in MAIN");
   
   // puts("waiting for a");
@@ -248,16 +245,22 @@ int main(){
   // puts("waiting for c");
   // join(c);
   // puts("successfully waited on c");
-
   
-  tid_t waiting_thread_magic_numbers = spawn(waiting_magic_numbers);
-  tid_t waiting_several_threads = spawn(waiting_several);
+  // tid_t waiting_thread_magic_numbers = spawn(waiting_magic_numbers);
+  // tid_t waiting_several_threads = spawn(waiting_several);
 
-  join(waiting_thread_magic_numbers);
-  puts("in main: waiting for magic numbers done:");
-  join(waiting_several_threads);
-  puts("in main: waiting for several threads done:");
+  // join(waiting_thread_magic_numbers);
+  // puts("in main: waiting for magic numbers done:");
+  // join(waiting_several_threads);
+  // puts("in main: waiting for several threads done:");
 
+  spawn(fibonacci_slow);
+  spawn(fibonacci_slow);
+  spawn(fibonacci_slow);
+
+  while(true) {
+    sleep(1);
+  }
 
   printf("back in main\n");
 }

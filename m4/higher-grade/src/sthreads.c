@@ -15,15 +15,19 @@
 #include <ucontext.h> /* ucontext_t, getcontext(), makecontext(),
                          setcontext(), swapcontext() */
 #include <stdbool.h>  /* true, false */
+#include <string.h>   // memset()
 #include <sys/time.h>
 #include "sthreads.h"
 
 /* Stack size for each context. */
 #define STACK_SIZE SIGSTKSZ*100
 
-#define TIMEOUT    50          // ms 
-#define TIMER_PAUSE   2000
-#define TIMER_TYPE ITIMER_REAL // Type of timer.
+#define TIME_SLICE_MS 50
+#define TIMER_TYPE ITIMER_REAL
+
+#define PAUSE_TIMER() setitimer(TIMER_TYPE, &pause_timer, &old_time)
+#define RESUME_TIMER() setitimer(TIMER_TYPE, &old_time, NULL)
+#define RESET_TIMER() setitimer(TIMER_TYPE, &new_time_slice, NULL)
 
 
 /*******************************************************************************
@@ -37,6 +41,11 @@ thread_t *ready_queue = NULL;
 thread_t *waiting_queue = NULL;
 tid_t thread_id = 0;
 ucontext_t thread_manager_ctx;
+
+struct itimerval old_time;
+struct itimerval pause_timer;
+struct itimerval new_time_slice;
+
 
 /*******************************************************************************
                              Auxiliary functions
@@ -187,6 +196,8 @@ void destroy_thread(thread_t *thread) {
 
 /// @brief Terminates the running thread, 
 void manage_threads() {
+  PAUSE_TIMER();
+
   thread_t *terminated_thread = running_thread;
   terminated_thread->state = terminated;
   
@@ -204,6 +215,7 @@ void manage_threads() {
   running_thread->next = NULL;
 
   // Resume thread execution
+  RESET_TIMER();
   setcontext(&running_thread->ctx);
 }
 
@@ -261,7 +273,23 @@ void set_timer(int type, void (*handler) (int), int ms) {
   timer.it_value.tv_sec = 0;
   timer.it_value.tv_usec = ms*1000;
   timer.it_interval.tv_sec = 0;
-  timer.it_interval.tv_usec = 0;
+  timer.it_interval.tv_usec = ms*1000;
+
+  // Initiate global time variables
+  new_time_slice.it_value.tv_sec = 0;
+  new_time_slice.it_value.tv_usec = ms*1000;
+  new_time_slice.it_interval.tv_sec = 0;
+  new_time_slice.it_interval.tv_usec = ms*1000;
+
+  old_time.it_value.tv_sec = 0;
+  old_time.it_value.tv_usec = ms*1000;
+  old_time.it_interval.tv_sec = 0;
+  old_time.it_interval.tv_usec = ms*1000;
+
+  pause_timer.it_value.tv_sec = 0;
+  pause_timer.it_value.tv_usec = 0;
+  pause_timer.it_interval.tv_sec = 0;
+  pause_timer.it_interval.tv_usec = 0;
 
   if (setitimer (type, &timer, NULL) < 0) {
     perror("Setting timer");
@@ -270,13 +298,8 @@ void set_timer(int type, void (*handler) (int), int ms) {
 }
 
 /* Timer signal handler. */
-
 void timer_context_switch(int signum){
-
-  puts("timer_handler");
-  printf("thread: %d exceeded allowed timeslice.\n", running_thread->tid);
-
-  set_timer(TIMER_TYPE, timer_context_switch, TIMEOUT);
+  printf("TIMEHANDLER: thread_id '%d' preemted! Exceeded allowed timeslice.\n", running_thread->tid);
   yield();
 }
 
@@ -306,13 +329,12 @@ int init(){
   running_thread = main_thread;
 
   // Start timer for time slice pre-emption
-  set_timer(TIMER_TYPE, timer_context_switch, TIMEOUT);
+  set_timer(TIMER_TYPE, timer_context_switch, TIME_SLICE_MS);
 
   return 1;
 }
 
 tid_t spawn(void (*start)()){
-  // TODO: Implement function
   thread_t *new_thread = calloc(1, sizeof(thread_t));
   if (new_thread == NULL) {
     return -1;
@@ -328,11 +350,10 @@ tid_t spawn(void (*start)()){
 }
 
 void yield(){
-  // Avoid timer expiring during yield.
-  set_timer(TIMER_TYPE, timer_context_switch, TIMER_PAUSE);
+  PAUSE_TIMER();
 
   if (ready_queue == NULL) {
-    set_timer(TIMER_TYPE, timer_context_switch, TIMEOUT);
+    RESUME_TIMER();
     return;
   } else {
     thread_t *old_running_thread = running_thread;
@@ -346,7 +367,7 @@ void yield(){
     printf("thread: %d -> ready\n", (int) old_running_thread->tid);
     printf("thread: %d -> running\n", (int) running_thread->tid);
 
-    set_timer(TIMER_TYPE, timer_context_switch, TIMEOUT);
+    RESET_TIMER();
     swapcontext(&old_running_thread->ctx, &running_thread->ctx);
   }
 }
@@ -357,17 +378,14 @@ void  done(){
 
 tid_t join(tid_t thread_id) {
   // Avoid timer expiring during join.
-
-  struct itimerval remaining_time;
-  getitimer(TIMER_TYPE, &remaining_time); 
-  set_timer(TIMER_TYPE, timer_context_switch, TIMER_PAUSE);
+  PAUSE_TIMER();
 
   if (running_thread->tid != thread_id &&
       !contains_thread(&ready_queue, thread_id) &&
       !contains_thread(&waiting_queue, thread_id)) {
     // Thread is not running, waiting nor ready. It must be dead.
     
-    set_timer(TIMER_TYPE, timer_context_switch, TIMER_PAUSE);
+    RESUME_TIMER();
     return thread_id;
   }
 
@@ -382,6 +400,7 @@ tid_t join(tid_t thread_id) {
   
   printf("thread: '%d' waiting for thread '%d' to terminate\n", thread_to_wait->tid, thread_to_wait->waiting_for);
 
+  RESET_TIMER();
   swapcontext(&thread_to_wait->ctx, &running_thread->ctx);
 
   return thread_to_wait->waiting_for;
