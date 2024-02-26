@@ -20,6 +20,9 @@ all: bin/n_barrier_test bin/sthreads_test
 ../psem/psem.o:
 	cd ../psem; make 
 
+bin/bank_test:  obj/bank_test.o obj/bank.o src/bank.h
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) $(filter %.o, $^) -o $@
+
 bin/n_barrier_test: ../psem/psem.o obj/n_barrier.o obj/n_barrier_test.o
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS)  $^ -o $@
 
