@@ -15,7 +15,7 @@ endif
 
 .PHONY: all clean
 
-all: bin/n_barrier_test bin/sthreads_test	
+all: bin/n_barrier_test bin/sthreads_test bin/bank_test
 
 ../psem/psem.o:
 	cd ../psem; make 
