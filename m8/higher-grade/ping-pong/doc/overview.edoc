@@ -1,0 +1,22 @@
+
+@title Ping Pong
+
+@doc
+
+The phrases "ping pong" and "tick tock" are examples of a linguistic phenomenon
+called <a target="_blank"
+href="https://www.rd.com/culture/ablaut-reduplication/">ablaut
+reduplication</a>. In this assignment you will implement a server that keeps
+track of such phrases.
+
+For example: 
+<ul>
+  <li>
+    When a clients sends the atom <b>ping</b> to the server, the server replies with
+    the atom <b>pong</b>.
+  </li>
+  <li>
+    When receiving the atom <b>tick</b> the server responds with the
+    atom <b>tock</b>.
+  </li>
+</ul>
