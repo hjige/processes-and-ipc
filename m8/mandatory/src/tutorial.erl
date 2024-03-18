@@ -15,7 +15,7 @@ hello() ->
 %%%%%%%%%%  Recursive functions %%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% @doc TODO: add description here
+%% @doc Prints "Hello!" to the terminal, N number of times.
 -spec hello(N :: integer()) -> ok.
 hello(0) ->
     ok;
@@ -57,7 +57,7 @@ fac_tr(N) ->
 fac_tr(0, Acc) ->
     Acc;
 fac_tr(N, Acc) ->
-    tbi.
+    fac_tr(N - 1, Acc * N).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%  List Comprehensions %%%%%%%%%%
@@ -76,8 +76,13 @@ fac_tr(N, Acc) ->
          B :: integer(),
          C :: integer().
 right_triangles(N) ->
-    L = lists:seq(1, N),
-    tbi.
+    Sides = lists:seq(1, N),
+    Predicate = fun (A, B, C) ->
+        %% Pythagoras theorem: C^2 = A^2 + B^2.
+        A*A + B*B == C*C
+    end,
+    %% List comprehension:
+    [{A, B, C} || A <- Sides, B <- Sides, C <- Sides, Predicate(A, B, C)].
 
 %% @doc Returns a list of tuples, where each tuple describes a character in the Simpson family.
 %%
@@ -123,13 +128,13 @@ simpsons() ->
     when Filter :: names | males | females | pets,
          Name :: string().
 simpsons(names) ->
-    tbi;
+    [Name || {Type, Gender, Name} <- simpsons()];
 simpsons(males) ->
-    tbi;
+    [Name || {Type, Gender, Name} <- simpsons(), Gender == male];
 simpsons(females) ->
-    tbi;
+    [Name || {Type, Gender, Name} <- simpsons(), Gender == female];
 simpsons(pets) ->
-    tbi.
+    [Name || {Type, Gender, Name} <- simpsons(), Type /= person].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%  Guarded Functions  %%%%%%%%%%
@@ -144,8 +149,10 @@ simpsons(pets) ->
 %% 64'''
 %% </div>
 -spec char_to_upper(char()) -> char().
-char_to_upper(Char) when true ->
-    tbi.
+char_to_upper(Char) when Char >= $a, Char =< $z ->
+    Char - ($a - $A);
+char_to_upper(Char) ->
+    Char.
 
 %% @doc Convert a character to lower case.
 %% === Example ===
@@ -156,8 +163,10 @@ char_to_upper(Char) when true ->
 %% 64'''
 %% </div>
 -spec char_to_lower(char()) -> char().
-char_to_lower(Char) when true ->
-    tbi.
+char_to_lower(Char) when Char >= $A, Char =< $Z ->
+    Char + ($a - $A);
+char_to_lower(Char) ->
+    Char.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%  Map  %%%%%%%%%%
@@ -173,7 +182,8 @@ char_to_lower(Char) when true ->
 %% </div>
 -spec str_to_upper(string()) -> string().
 str_to_upper(String) ->
-    tbi.
+    % lists:map(fun char_to_upper/1, String).
+    [char_to_upper(Letter) || Letter <- String].
 
 %% @doc Convert a string to lower case.
 %% === Example ===
@@ -183,7 +193,7 @@ str_to_upper(String) ->
 %% </div>
 -spec str_to_lower(string()) -> string().
 str_to_lower(String) ->
-    tbi.
+    lists:map(fun char_to_lower/1, String).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%  Fold %%%%%%%%%%
@@ -195,12 +205,19 @@ str_to_lower(String) ->
 %% 8> tutorial:max([4,-1,8, 0, 3]).
 %% 8'''
 %% </div>
--spec max(L) -> M
-    when L :: [integer()],
-         M :: integer().
-max([H | T]) ->
-    F = tbi,
-    lists:foldl(F, H, T).
+-spec max(List) -> Max
+    when List :: [integer()],
+         Max :: integer().
+max([Head | Tail]) ->
+    F = fun (Elem, Max) -> 
+        case Elem > Max of
+            true ->
+                Elem;
+            false ->
+                Max
+        end
+    end,
+    lists:foldl(F, Head, Tail).
 
 %% @doc Returns the number of times Char occurs in String.
 %% === Example ===
@@ -213,8 +230,14 @@ max([H | T]) ->
     when String :: string(),
          Char :: char().
 count(String, Char) ->
-    F = tbi,
-
+    F = fun (Letter, Occurances) ->
+        case Char == Letter of
+            true ->
+                Occurances + 1;
+            false ->
+                Occurances
+        end
+    end,
     lists:foldl(F, 0, String).
 
 %% @doc Returns a tuple {{odd, Odd}, {even, Even}} where Odd and Even
@@ -232,7 +255,7 @@ odd_and_even(List) ->
     F = fun (X, {{odd, Odd}, {even, Even}}) when X rem 2 == 0 ->
                 {{odd, Odd}, {even, [X | Even]}};
             (X, {{odd, Odd}, {even, Even}}) ->
-                tbi
+                {{odd, [X | Odd]}, {even, Even}}
         end,
 
     lists:foldl(F, {{odd, []}, {even, []}}, List).
