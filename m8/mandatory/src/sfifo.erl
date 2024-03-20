@@ -19,6 +19,7 @@
 
 %% @doc Creates a new FIFO queue.
 -opaque sfifo()::pid().
+-export_type([sfifo/0]).
 -spec new() -> sfifo().
 
 new() ->
@@ -33,7 +34,20 @@ loop(Fifo) ->
 	    loop(Fifo);
 	{empty, PID} ->
 	    PID ! fifo:empty(Fifo),
-	    loop(Fifo)
+	    loop(Fifo);
+    {pop, PID} ->
+        case fifo:empty(Fifo) of
+            true ->
+                PID ! {error, 'empty fifo'},
+                loop(Fifo);
+            false ->
+                {Value, NewFifo} = fifo:pop(Fifo),
+                PID ! Value,
+                loop(NewFifo)
+        end;
+    {push, PID, Value} ->
+        PID ! ok,
+        loop(fifo:push(Fifo, Value))
     end.
 
 
@@ -67,7 +81,11 @@ empty(Fifo) ->
 -spec pop(Fifo) -> term() when Fifo::sfifo().
 
 pop(Fifo) ->
-    tbi.
+    Fifo ! {pop, self()},
+    receive
+        Value ->
+            Value
+    end.
 
 
 %% @doc Push a new value to Fifo.
@@ -75,7 +93,11 @@ pop(Fifo) ->
       Fifo::sfifo(),
       Value::term().
 push(Fifo, Value) ->
-    ok.
+    Fifo ! {push, self(), Value},
+    receive
+        ok ->
+            ok
+    end.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
