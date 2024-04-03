@@ -67,12 +67,53 @@ start(true, true) ->
 %% process, link to the server process and wait the server to terminate. If the
 %% server terminates due to an error, the supervisor should make a recursive
 %% call to it self to restart the server.
-
 -spec supervisor(Stateful) -> ok when
       Stateful :: boolean().
 
 supervisor(Stateful) ->
-    tbi.
+    io:format("~nSupervisor with PID ~p started~n", [self()]),
+    
+    process_flag(trap_exit, true),
+    
+    start_server(Stateful),
+    
+    supervisor_loop(Stateful),
+    ok.
+
+%% @doc Starts a server process and registers it to 
+-spec start_server(Stateful) -> ok when
+    Stateful :: boolean().
+
+start_server(Stateful) ->
+  case Stateful of
+      true ->
+          PID = spawn_link(fun() -> loop(pairs()) end);
+      false ->
+          PID = spawn_link(fun() -> loop() end)
+  end,
+
+  io:format("Process with PID ~p started~n", [PID]),
+  register(server, PID),
+  io:format("PID ~p registered to atom 'server'~n", [PID]),
+  ok.
+
+    
+%% @doc The server supervisor recieve message loop.
+supervisor_loop(Stateful) ->
+    receive
+        {'EXIT', PID, Reason} ->
+            io:format("Server ~w terminated with reason ~w!~n", [PID, Reason]),
+            case Reason of
+                simulated_bug -> 
+                    %% Restart server
+                    start_server(Stateful),
+                    supervisor_loop(Stateful);
+                _unchecked_reason ->
+                    ok
+            end;
+        _ ->
+            supervisor_loop(Stateful)
+    end.
 
 %% @doc Terminates the supervised server.
 
@@ -130,8 +171,11 @@ loop() ->
             exit(simulated_bug),
             From ! {pong, blopp},
             loop();
-        {ping, dddding, From} ->
+        {ping, ding, From} ->
             From ! {pong, dong},
+            loop();
+        {ping, dddding, From} ->
+            From ! {pong, ddddong},
             loop();
         {ping, ping, From} ->
             From ! {pong, pong},
@@ -139,11 +183,15 @@ loop() ->
         {ping, tick, From} ->
             From ! {pong, tock},
             loop();
+        {ping, king, From} ->
+            From ! {pong, kong},
+            loop();
         {stop, From} ->
             From ! {stop, ok};
         {update, From}  ->
             %% TODO: Trigger a hot code swap.
-            tbi;
+            From ! {update, ok},
+            server:loop();
         Msg ->
             io:format("loop/0: Unknown message: ~p~n", [Msg]),
             loop()
@@ -163,8 +211,37 @@ loop(Pairs) ->
             exit(simulated_bug);
         {ping, Ping, From} ->
             %% TODO: send correct reply.
-            loop(Pairs);
+            case maps:is_key(Ping, Pairs) of
+                true ->
+                    From ! {pong, maps:get(Ping, Pairs)},
+                    loop(Pairs);
+                false ->
+                    io:format("loop2/0: Bad Key: ~p~n", [Ping]),
+                    From ! "unknown key!",
+                    loop(Pairs)
+            end;
+                        
+            % Pong = (catch maps:get(Ping, Pairs)),
+            % case Pong of 
+            %     {'EXIT', {{badkey, _Key}, _Stacktrace}} ->
+            %         io:format("loop2/0: Bad Key: ~p~n", [Ping]),
+            %         From ! "unknown key!";
+            %     {'EXIT', _} ->
+            %         io:format("loop2/0: Bad Map: ~n");
+            %     _Value ->
+            %         From ! {pong, Pong}
+            % end,
+            % loop(Pairs);
+        
         %% TODO: Handle the update, put and stop actions. 
+        {put, Ping, Pong, From} ->
+            From ! {put, Ping, Pong, ok},
+            loop(maps:put(Ping, Pong, Pairs));
+        {update, From} ->
+            From ! {update, ok},
+            server:loop(Pairs);
+        {stop} ->
+            tbi;
         Msg ->
             io:format("loop2/0: Unknown message: ~p~n", [Msg]),
             loop(Pairs)
