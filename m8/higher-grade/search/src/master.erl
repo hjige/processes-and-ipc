@@ -1,6 +1,6 @@
 -module(master).
 
--export([start/3, stop/1, log_guess/4, winner/2]).
+-export([start/3, stop/1, log_guess/4, winner/2, loser/2]).
 
 init() ->
     maps:new().
@@ -16,13 +16,11 @@ init() ->
 
 start(NumWorkers, Min, Max) ->
     Secret = utils:random(Min, Max),
+    io:format("The secret is ~p~n", [Secret]),
     Server = server:start(Secret),
     Master = spawn(fun() -> loop(NumWorkers, init()) end),
 
     [Master ! {add_worker, worker:start(Server, Master, Min, Max)} || _ <- lists:seq(1, NumWorkers)],
-
-    Master ! foo,
-    Master ! bar,
 
     Master.
 
@@ -35,20 +33,23 @@ stop(Master) ->
     Master ! stop.
 
 loop(0, Map) ->
-    io:format("DONE ~p~n", [Map]);
+    io:format("DONE ~n Final statistics: ~n~n~p~n", [Map]);
 
 loop(CountDown, Map) ->
     receive
         {guess, _Master} ->
             loop(CountDown, Map);
+        {add_worker, Worker} ->
+            loop(CountDown, maps:put(Worker, {0, 0, searching}, Map));
         {guess, Guess, Guesses, Worker} ->
             loop(CountDown, maps:put(Worker, {Guesses, Guess, searching}, Map));
-        {winner, Worker} -> 
+        {winner, Worker, _Master} -> 
+            maps:map(fun(K, _V) -> K ! {'EXIT', Worker, loser} end, Map),
             {Count, Guess, _Status} = maps:get(Worker, Map),
-            loop(CountDown, maps:put(Worker, {Count, Guess, winner}, Map));
-        {add_worker, Worker} ->
-            io:format("Adding worker PID: ~p~n", Worker),
-            loop(CountDown, maps:put(Worker, {0, 0, searching}, Map));
+            loop(CountDown - 1, maps:put(Worker, {Count, Guess, winner}, Map));
+        {loser, Worker, _Master} ->
+            {Count, Guess, _Status} = maps:get(Worker, Map),
+            loop(CountDown - 1, maps:put(Worker, {Count, Guess, loser}, Map));
         print ->
             io:format("~p~n", [Map]),
             loop(CountDown, Map);
@@ -75,5 +76,12 @@ log_guess(Master, Guess, Guesses, Worker) ->
     Worker :: pid().
 
 winner(Master, Worker) ->
-    Master ! {winner, Worker},
+    Master ! {winner, Worker, Master},
     ok.
+
+-spec loser(Master, Worker) -> ok when
+  Master ::pid(),
+  Worker :: pid().
+
+loser(Master, Worker) ->
+  Master ! {loser, Worker, Master}.
