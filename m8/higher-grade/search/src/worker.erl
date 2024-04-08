@@ -20,11 +20,12 @@ loop(Server, Master, Min, Max, Guesses) ->
     process_flag(trap_exit, true),
     Guess = utils:random(Min, Max),
     Server ! {guess, Guess, self()},
-    master:log_guess(Master, self()),
+    master:log_guess(Master, Guess, Guesses, self()),
 
     receive
         {right, Guess} ->
-            tbi;
+            master:winner(Master, self()),
+            ok;
         {wrong, Guess} ->
             io:format("~p ~*.. B~n", [self(), utils:width(Max), Guess]),
             loop(Server, Master, Min, Max, Guesses + 1);
