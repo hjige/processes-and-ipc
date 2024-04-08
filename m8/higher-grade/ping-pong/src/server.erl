@@ -207,7 +207,7 @@ loop() ->
 
 loop(Pairs) ->
     receive
-        {ping, flip, From} ->
+        {ping, flip, _From} ->
             exit(simulated_bug);
         {ping, Ping, From} ->
             %% TODO: send correct reply.
