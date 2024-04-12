@@ -120,7 +120,7 @@ supervisor_loop(Stateful) ->
 -spec stop() -> ok | error.
 
 stop() ->
-    stop(server).
+    stop(whereis(server)).
 
 -spec stop(Server) -> ok | error when
       Server :: pid().
@@ -142,7 +142,7 @@ stop(Server) ->
 -spec update() -> ok | error.
 
 update() ->
-    update(server).
+    update(whereis(server)).
 
 %% @doc Makes the unsupervised server perform a hot code swap.
 
@@ -240,8 +240,8 @@ loop(Pairs) ->
         {update, From} ->
             From ! {update, ok},
             server:loop(Pairs);
-        {stop} ->
-            tbi;
+        {stop, From} ->
+            From ! {stop, ok};
         Msg ->
             io:format("loop2/0: Unknown message: ~p~n", [Msg]),
             loop(Pairs)
