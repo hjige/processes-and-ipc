@@ -12,7 +12,7 @@
        Max :: number(),
        Worker :: pid().
 start(Server, Master, Min, Max) ->
-  spawn(fun() -> loop(Server, Master, Min, Max, 0) end).
+  spawn(fun() -> loop(Server, Master, Min, Max, 1) end).
 
 loop(Server, Master, Min, Max, Guesses) ->
   process_flag(trap_exit, true),
@@ -24,7 +24,7 @@ loop(Server, Master, Min, Max, Guesses) ->
     {right, Guess} ->
       io:format("~p ~*.. B <== Found the winner ~n", [self(), utils:width(Max), Guess]),
       master:winner(Master, self()),
-      ok;
+      exit(winner);
     {wrong, Guess} ->
       io:format("~p ~*.. B~n", [self(), utils:width(Max), Guess]),
       loop(Server, Master, Min, Max, Guesses + 1);

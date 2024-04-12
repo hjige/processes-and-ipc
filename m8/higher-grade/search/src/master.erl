@@ -19,8 +19,14 @@ start(NumWorkers, Min, Max) ->
     io:format("The secret is ~p~n", [Secret]),
     Server = server:start(Secret),
     Master = spawn(fun() -> loop(NumWorkers, init()) end),
-
-    [Master ! {add_worker, worker:start(Server, Master, Min, Max)} || _ <- lists:seq(1, NumWorkers)],
+    
+    WorkerPIDs = [worker:start(Server, Master, Min, Max) || _ <- lists:seq(1, NumWorkers)],
+    
+    % Initialize each workers stats on the Master
+    lists:map(fun(PID) -> Master ! {add_worker, PID} end, WorkerPIDs),
+        
+    % Create a supervisor to terminate all workers once one has won.
+    spawn(fun() -> supervise_workers(WorkerPIDs) end),
 
     Master.
 
@@ -44,8 +50,9 @@ loop(CountDown, Map) ->
         {guess, Guess, Guesses, Worker} ->
             loop(CountDown, maps:put(Worker, {Guesses, Guess, searching}, Map));
         {winner, Worker, _Master} -> 
-            maps:map(fun(K, _V) -> K ! {'EXIT', Worker, loser} end, Map),
+            % maps:map(fun(K, _V) -> K ! {'EXIT', Worker, loser} end, Map),
             {Count, Guess, _Status} = maps:get(Worker, Map),
+            % io:format("Master registered winner~n"),
             loop(CountDown - 1, maps:put(Worker, {Count, Guess, winner}, Map));
         {loser, Worker, _Master} ->
             {Count, Guess, _Status} = maps:get(Worker, Map),
@@ -71,6 +78,8 @@ log_guess(Master, Guess, Guesses, Worker) ->
     Master ! {guess, Guess, Guesses, Worker},
     ok.
 
+%% @doc Notifies the Master that this Worker has guessed the correct number.
+
 -spec winner(Master, Worker) -> ok when
     Master :: pid(),
     Worker :: pid().
@@ -79,9 +88,30 @@ winner(Master, Worker) ->
     Master ! {winner, Worker, Master},
     ok.
 
+%% @doc Notifies the Master that this Worker has lost.
+
 -spec loser(Master, Worker) -> ok when
   Master ::pid(),
   Worker :: pid().
 
 loser(Master, Worker) ->
-  Master ! {loser, Worker, Master}.
+  Master ! {loser, Worker, Master},
+  ok.
+
+%% @doc Supervises workers, when one worker terminates, each other workers are terminated.
+
+-spec supervise_workers(WorkerPIDs) -> ok when
+    WorkerPIDs :: [pid()].
+
+supervise_workers(WorkerPIDs) ->
+    process_flag(trap_exit, true),
+    lists:map(fun(PID) -> link(PID) end, WorkerPIDs),
+    
+    io:format("Supervisor created and linked to all workers!~n"),
+
+    receive
+        {'EXIT', _From, winner} ->
+            exit(loser)
+    end,
+
+    ok.
